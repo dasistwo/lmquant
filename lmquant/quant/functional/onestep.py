@@ -97,10 +97,28 @@ def onestep_quantize(  # noqa: C901
     elif kernel_config.kernel == QuantKernelType.GPTQ:
         assert not scale.data.requires_grad, "scale must not require gradient."
         assert round_delta is None or not round_delta.requires_grad, "round_delta must not require gradient."
-        tensor_hat = ste(
+        tensor_hat, _ = ste(
             develop_tensor,
             fn=functools.partial(
                 gptq_quantize,
+                view_shape=view_shape,
+                quant_dtype=config.dtype,
+                gptq_config=kernel_config,
+                scale=scale.data,
+                zero=zero,
+                inputs=inputs,
+                quant_range=quant_range,
+                range_bound=range_bound,
+                round_delta=round_delta,
+            ),
+        )
+    elif kernel_config.kernel == QuantKernelType.DecoupleQ:
+        assert not scale.data.requires_grad, "scale must not require gradient."
+        assert round_delta is None or not round_delta.requires_grad, "round_delta must not require gradient."
+        tensor_hat = ste(
+            develop_tensor,
+            fn=functools.partial(
+                decoupleq_quantize,
                 view_shape=view_shape,
                 quant_dtype=config.dtype,
                 gptq_config=kernel_config,

@@ -2,12 +2,12 @@ seed: 12345
 save_model: false
 model:
   name: llama2-7b
-  root: /dataset/models
-  local_root: /dataset/models
+  root: /home/jychoi/model/hf
+  local_root: /home/jychoi/model/hf
 eval:
-  num_gpus: 8
-  batch_size: 8
-  output_root: runs
+  num_gpus: 1
+  batch_size: 64
+  output_root: /home/jychoi/model/qserve_checkpoints
   output_dirname: default
   attach_timestamp: true
   tasks:

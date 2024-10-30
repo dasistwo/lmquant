@@ -4,13 +4,14 @@
 import gc
 import logging
 import math
+from typing import Tuple
 
 import torch
 
 from ...dataset import ActivationsCache
 from ..data.dtype import QuantDataType
 from ..data.range import QuantRange, RangeBound
-from .config import QuantGPTQConfig
+from .config import QuantGPTQConfig, QuantDecoupleQConfig
 from .simple import simple_quantize
 
 __all__ = ["gptq_quantize"]
@@ -29,7 +30,7 @@ def gptq_quantize(  # noqa: C901
     quant_range: QuantRange = None,
     range_bound: RangeBound = None,
     round_delta: torch.Tensor = None,
-) -> torch.Tensor:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """Quantize the tensor using the GPTQ quantization kernel.
 
     Args:
@@ -83,13 +84,29 @@ def gptq_quantize(  # noqa: C901
     gc.collect()
     torch.cuda.empty_cache()
     # endregion
-    # region step 3: permute the Hessian matrix
+    # region step 3: permute the Hessian matrix : actorder
     importance = torch.diag(hessian)  # (#g1 * #g2 * ... * gs1 * gs2 * ..., )
     permute = torch.argsort(importance, descending=True)
     hessian = hessian[permute][:, permute]
     reshaped_tensor = reshaped_tensor[:, permute]
     inverse_permute = torch.argsort(permute)
     del importance
+    # endregion
+    # region opt_intW3: use Adam optimizer as DecoupleQ did: sanity check this
+    l = quant_dtype.min_value * reshaped_scale + reshaped_zero
+    r = quant_dtype.max_value * reshaped_scale + reshaped_zero
+    left = torch.minimum(l, r).repeat_interleave(column_group_size, dim=2).squeeze()
+    right = torch.maximum(l, r).repeat_interleave(column_group_size, dim=2).squeeze()
+    w = reshaped_tensor.clone()
+    w.requires_grad = True
+    opt = torch.optim.Adam([w], eps=1.0e-5)
+    grad = torch.matmul(w - reshaped_tensor, hessian)
+    w.grad = grad
+    opt.step()
+    opt.zero_grad()
+    w.data.clamp_(min=left, max=right)
+    reshaped_tensor = w.detach()
+    del w, opt, grad, left, right, l, r
     # endregion
     # region step 4: apply dampening to avoid numerical instability
     hessian_diag = hessian.diagonal()
@@ -115,7 +132,7 @@ def gptq_quantize(  # noqa: C901
         )
     assert not hessian_inv.isinf().any(), "Inverse of Hessian matrix contains Inf."
     assert not hessian_inv.isnan().any(), "Inverse of Hessian matrix contains NaN."
-    del hessian, hessian_diag, hessian_diag_mean, num_inv_tries
+    del hessian_diag, hessian_diag_mean, num_inv_tries
     # endregion
     # region step 6: quantize the tensor
     tensor_hat = torch.zeros_like(reshaped_tensor)
@@ -162,4 +179,12 @@ def gptq_quantize(  # noqa: C901
     # endregion
     assert not view_tensor_hat.isnan().any(), "GPTQ Quantized tensor contains NaN."
     assert not view_tensor_hat.isinf().any(), "GPTQ Quantized tensor contains Inf."
-    return view_tensor_hat
+
+    # region step 8: calculate the loss
+
+    err = torch.matmul(
+        torch.matmul(view_tensor_hat.view(tensor.shape) - tensor, hessian),
+        (view_tensor_hat.view(tensor.shape) - tensor).t(),
+    ).diag()
+
+    return view_tensor_hat, err

@@ -11,12 +11,13 @@ from omniconfig import configclass
 
 from ....utils import num2str
 
-__all__ = ["QuantKernelType", "QuantKernelConfig", "QuantGPTQConfig"]
+__all__ = ["QuantKernelType", "QuantKernelConfig", "QuantGPTQConfig", "QuantDecoupleQConfig"]
 
 
 class QuantKernelType(enum.Enum):
     RTN = enum.auto()
     GPTQ = enum.auto()
+    DecoupleQ = enum.auto()
     # reserved for future possible quantization kernels
 
 
@@ -119,6 +120,7 @@ class QuantGPTQConfig(QuantKernelConfig):
         block_size (int): The block size. Defaults to ``128``.
         num_inv_tries (int): The number of tries for the inverse. Defaults to ``40``.
         hessian_block_size (int): The block size when calculing the Hessian. Defaults to ``-1``.
+        actorder (bool): Whether to use the activation reorder. Defaults to ``True``.
         includes (list[str]): The module keys to include. Defaults to ``[]``.
     """
 
@@ -142,3 +144,39 @@ class QuantGPTQConfig(QuantKernelConfig):
             list[str]: The directory names.
         """
         return [f"d{num2str(self.damp_percentage)}.b{num2str(self.block_size)}"]
+
+
+@configclass
+@dataclass
+class QuantDecoupleQConfig(QuantKernelConfig):
+    """Configuration for DecoupleQ quantization.
+
+    Args:
+        damp_percentage (float): The percentage of damping. Defaults to ``0.01``.
+        block_size (int): The block size. Defaults to ``128``.
+        num_inv_tries (int): The number of tries for the inverse. Defaults to ``40``.
+        hessian_block_size (int): The block size when calculing the Hessian. Defaults to ``-1``.
+        includes (list[str]): The module keys to include. Defaults to ``[]``.
+    """
+
+    iteration: int = 16
+    damp_percentage: float = 0.01
+    block_size: int = 128
+    num_inv_tries: int = 200
+    hessian_block_size: int = -1
+
+    @property
+    def kernel(self) -> QuantKernelType:
+        return QuantKernelType.DecoupleQ
+
+    def __str__(self) -> str:
+        s = super().__str__()
+        return f"{s[:-1]}, damp_percentage={self.damp_percentage}, block_size={self.block_size}, iteration={self.iteration})"
+
+    def _generate_dirnames(self) -> list[str]:
+        """Generate the directory names of the configuration.
+
+        Returns:
+            list[str]: The directory names.
+        """
+        return [f"iter{num2str(self.iteration)}.d{num2str(self.damp_percentage)}.b{num2str(self.block_size)}"]

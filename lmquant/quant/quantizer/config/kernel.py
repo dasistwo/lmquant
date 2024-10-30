@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from omniconfig import configclass
 
-from ...functional.config.kernel import QuantGPTQConfig, QuantKernelConfig, QuantKernelType
+from ...functional.config.kernel import QuantGPTQConfig, QuantDecoupleQConfig, QuantKernelConfig, QuantKernelType
 
 __all__ = ["QuantizerKernelConfig"]
 
@@ -22,6 +22,7 @@ class QuantizerKernelConfig:
     _kernels: dict[str, QuantKernelConfig | None] = field(init=False, repr=False, compare=False, default_factory=dict)
     # for every quantization kernel (except RTN), add the corresponding configuration here
     gptq: QuantGPTQConfig | None = None
+    decoupleq: QuantDecoupleQConfig | None = None
 
     @property
     def enabled(self) -> bool:
