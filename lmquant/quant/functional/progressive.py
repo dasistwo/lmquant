@@ -109,7 +109,7 @@ def progressive_quantize(  # noqa: C901
     else:
         compute_quant_range = QuantRange.build_protective(config.compute_dtype, config.dtype)
     develop_tensor = tensor.to(dtype=develop_dtype) if dtype != develop_dtype else tensor.clone()
-    # region step 1: get the compute level sale
+    # region step 1: get the compute level scale
     compute_config = config.get_compute_level_config()
     compute_group_shapes = ShapeUtils.infer_group_shapes(group_shapes=compute_config.group_shapes, shape=shape)
     compute_view_shape = ShapeUtils.infer_view_shape(shape, group_shape=compute_group_shapes[-1])

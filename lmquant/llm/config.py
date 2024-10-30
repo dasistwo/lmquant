@@ -318,7 +318,7 @@ class LlmRunConfig:
         """
         parser = ConfigParser("Evaluate a large language model")
         parser.add_config(LlmRunConfig, **LlmQuantConfig.generate_flags())
-        config, parsed_args, unknown_args = parser.parse_known_args(args)
+        config, parsed_args, _, unknown_args = parser.parse_known_args(args)
         assert isinstance(config, LlmRunConfig)
         return config, parsed_args, unknown_args
 
