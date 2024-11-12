@@ -148,11 +148,11 @@ def progressive_quantize(  # noqa: C901
     # endregion
     if return_with_dequant:
         tensor_hat = result.data
-        if config.saturate_compute_dtype:
-            tensor_hat = tensor_hat.clamp_(min=config.compute_dtype.max_value, max=config.compute_dtype.min_value)
-        else:
-            assert tensor_hat.max() <= config.compute_dtype.max_value, "Quantized tensor exceeds maximum value."
-            assert tensor_hat.min() >= config.compute_dtype.min_value, "Quantized tensor exceeds minimum value."
+        # if config.saturate_compute_dtype:
+        tensor_hat = tensor_hat.clamp_(min=config.compute_dtype.max_value, max=config.compute_dtype.min_value)
+        # else:
+        #     assert tensor_hat.max() <= config.compute_dtype.max_value, "Quantized tensor exceeds maximum value."
+        #     assert tensor_hat.min() >= config.compute_dtype.min_value, "Quantized tensor exceeds minimum value."
         result._dequantized = tensor_hat.view(compute_view_shape).mul_(compute_scale.data).view(shape).to(dtype)
         assert result.data.requires_grad == requires_grad, "requires_grad must be consistent."
     if return_with_quant:

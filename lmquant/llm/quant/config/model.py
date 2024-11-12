@@ -645,6 +645,7 @@ class LlmQuantConfig(ModuleQuantizerConfig):
             dict[str, bool]: The flags.
         """
         flags = LlmQuantConfig._generate_skip_flags()
+        flags.update(LlmQuantConfig._generate_calib_xw_flags(prefix="wgts_calib_kernel_decoupleq", action="include"))
         flags.update(LlmQuantConfig._generate_calib_xw_flags(prefix="wgts_calib_kernel_gptq", action="include"))
         flags.update(LlmQuantConfig._generate_calib_xw_flags(prefix="wgts_calib_range", action="skip"))
         flags.update(LlmQuantConfig._generate_calib_xw_flags(prefix="ipts_calib_range", action="skip"))

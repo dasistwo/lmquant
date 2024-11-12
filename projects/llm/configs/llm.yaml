@@ -6,7 +6,7 @@ model:
   local_root: /home/jychoi/model/hf
 eval:
   num_gpus: 1
-  batch_size: 64
+  batch_size: 1
   output_root: /home/jychoi/model/qserve_checkpoints
   output_dirname: default
   attach_timestamp: true

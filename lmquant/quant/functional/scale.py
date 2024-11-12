@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
 """Quantization scale module."""
 
+import gc
 import math
-
 import torch
 
+from ...dataset import ActivationsCache
 from ..data.dtype import QuantDataType
 from ..data.range import DynamicRange, QuantRange
 from ..data.scale import QuantScale
 from ..data.utils import ScaleUtils, ShapeUtils
 from ..data.utils.scale import infer_scale_quant_spans
 from .simple import simple_quantize
+from .config import QuantGPTQConfig, QuantDecoupleQConfig
 
-__all__ = ["infer_scale_and_zero"]
+__all__ = ["infer_scale_and_zero", "calibrate_scale_and_zero"]
 
 
 def quantize_scale_kernel(
@@ -181,10 +183,74 @@ def infer_scale_and_zero(  # noqa: C901
             zero = quant_range.min - dynamic_range.min / s.data
         else:
             assert isinstance(zero, torch.Tensor), "Zero point must be a tensor."
-        z = simple_quantize(zero, quant_dtype=quant_dtype)
+        # change the zero point dtype with the scale dtype
+        z = simple_quantize(zero, quant_dtype=lin_s_dtypes[-1] if lin_s_dtypes else exp_s_dtypes[-1])
     else:
         z = torch.tensor(0, dtype=s.data.dtype, device=s.data.device)
     assert not z.isnan().any(), "Zero point tensor contains NaN."
     assert not z.isinf().any(), "Zero point tensor contains Inf."
     # endregion
     return s, z
+
+
+def calibrate_scale_and_zero(
+    tensor: torch.Tensor,
+    tensor_hat: torch.Tensor,
+    *,
+    config: QuantGPTQConfig | QuantDecoupleQConfig,
+    view_shape: torch.Size,
+    scale: torch.Tensor,
+    zero: torch.Tensor,
+    inputs: ActivationsCache,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Calibrate the scale and zero point of the tensor to be quantized."""
+    """ Use PDE of loss function || WA - /hat{W}A ||_2 ^2 to calibrate """
+
+    # region step 1: reshape the tensor and scale
+    # view shape = (channel, 1, num_group 0, group_size 0, num_group 1, group_size 1)
+    view_tensor = tensor.view(view_shape)
+    len_view_shape = len(view_shape)
+    reshaped_tensor = view_tensor.permute(0, 1, *range(2, len_view_shape, 2), *range(3, len_view_shape, 2))
+    reshaped_tensor_hat = tensor_hat.view(view_shape).permute(0, 1, *range(2, len_view_shape, 2), *range(3, len_view_shape, 2))
+    # reshaped_tensor: (#g0 * gs0, #g1 * #g2 * ... * gs1 * gs2 * ...)
+    reshaped_tensor = reshaped_tensor.reshape(view_shape[0] * view_shape[1], -1)
+    reshaped_tensor_hat = reshaped_tensor_hat.reshape(view_shape[0] * view_shape[1], -1)
+    num_row_groups, num_column_groups = view_shape[0], view_shape[2::2].numel()
+    row_group_size, column_group_size = view_shape[1], view_shape[3::2].numel()
+    num_rows, num_columns = reshaped_tensor.shape
+    reshaped_scale = scale.view(num_row_groups, 1, num_column_groups)
+    zero_is_number = isinstance(zero, (int, float)) or zero.numel() == 1
+    reshaped_zero = zero if zero_is_number else zero.view(num_row_groups, 1, num_column_groups)
+    # endregion
+
+    # region step 2: get the Hessian Matrix
+    assert inputs.num_sources == 1, f"GPTQ requires only one input source, got {inputs.num_sources}."
+    num_samples = inputs.num_samples
+    xs, dim, fn = inputs[0].cached, inputs[0].channels_dim, inputs[0].transform
+    hessian = torch.zeros((num_columns, num_columns), device=view_tensor.device, dtype=view_tensor.dtype)
+    for x in xs:
+        x: torch.Tensor = fn(x.view(-1, *x.shape[dim:]))
+        if config.hessian_block_size > 0 and x.shape[0] > config.hessian_block_size:
+            for b in range(0, x.shape[0], config.hessian_block_size):
+                _x = x[b : min(b + config.hessian_block_size, x.shape[0])]
+                _x = math.sqrt(2 / num_samples) * _x.to(device=view_tensor.device, dtype=view_tensor.dtype)
+                hessian += torch.matmul(_x.t(), _x)
+        else:
+            x = math.sqrt(2 / num_samples) * x.to(device=view_tensor.device, dtype=view_tensor.dtype)
+            hessian += torch.matmul(x.t(), x)
+    dead = hessian.diagonal() == 0
+    hessian[dead, dead] = 1
+    reshaped_tensor[:, dead] = 0
+    del xs, dim, fn, x, inputs, num_samples, dead
+    gc.collect()
+    torch.cuda.empty_cache()
+    # endregion
+
+    # region step 3: apply dampening to avoid numerical instability
+    hessian_diag = hessian.diagonal()
+    hessian_diag_mean = hessian_diag.mean()
+    hessian_diag += config.damp_percentage * hessian_diag_mean
+    del hessian_diag, hessian_diag_mean
+    # endregion
+    
+    #

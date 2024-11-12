@@ -10,7 +10,7 @@ from ..data.scale import QuantScale
 from ..data.tensor import QuantTensor
 from ..data.utils import ShapeUtils
 from .config import QuantConfig, QuantKernelConfig, QuantKernelType
-from .gptq import gptq_quantize
+from .gptq import gptq_quantize, decoupleq_quantize
 from .rtn import rtn_quantize
 from .scale import infer_scale_and_zero
 from .ste import ste
@@ -97,7 +97,7 @@ def onestep_quantize(  # noqa: C901
     elif kernel_config.kernel == QuantKernelType.GPTQ:
         assert not scale.data.requires_grad, "scale must not require gradient."
         assert round_delta is None or not round_delta.requires_grad, "round_delta must not require gradient."
-        tensor_hat, _ = ste(
+        tensor_hat = ste(
             develop_tensor,
             fn=functools.partial(
                 gptq_quantize,
