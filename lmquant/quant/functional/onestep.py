@@ -121,7 +121,7 @@ def onestep_quantize(  # noqa: C901
                 decoupleq_quantize,
                 view_shape=view_shape,
                 quant_dtype=config.dtype,
-                gptq_config=kernel_config,
+                decoupleq_config=kernel_config,
                 scale=scale.data,
                 zero=zero,
                 inputs=inputs,

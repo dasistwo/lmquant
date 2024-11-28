@@ -25,7 +25,7 @@ def run(  # noqa: C901
     config: LlmRunConfig,
     return_with_quantizers: bool = False,
     return_with_scale_state_dict: bool = False,
-    logging_level: int = logging.DEBUG,
+    logging_level: int = logging.INFO,
 ) -> tuple[
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -129,7 +129,7 @@ def run(  # noqa: C901
         tools.logging.Formatter.indent_inc()
         if config.cache_path.reorder and os.path.exists(config.cache_path.reorder):
             logger.info(f"- Loading channel indices from {config.cache_path.reorder}")
-            reorder_cache = torch.load(config.cache_path.reorder)
+            reorder_cache = torch.load(config.cache_path.reorder, weights_only=True)
             _, reorder_hooks = reorder_llm(
                 model, config.quant, tokenizer, calib_config=config.calib, reorder_cache=reorder_cache
             )

@@ -167,3 +167,8 @@ cython_debug/
 *.pt
 .tmp/
 runs/
+
+projects/llm/configs/generated_configs
+*.pdf
+
+

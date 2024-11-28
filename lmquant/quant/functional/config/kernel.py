@@ -159,7 +159,8 @@ class QuantDecoupleQConfig(QuantKernelConfig):
         includes (list[str]): The module keys to include. Defaults to ``[]``.
     """
 
-    iteration: int = 16
+    calib_iteration: int = 2
+    channel_batch: int = 1024
     damp_percentage: float = 0.01
     block_size: int = 128
     num_inv_tries: int = 200
@@ -179,4 +180,14 @@ class QuantDecoupleQConfig(QuantKernelConfig):
         Returns:
             list[str]: The directory names.
         """
-        return [f"iter{num2str(self.iteration)}.d{num2str(self.damp_percentage)}.b{num2str(self.block_size)}"]
+        return [f"iter{num2str(self.calib_iteration)}.d{num2str(self.damp_percentage)}.b{num2str(self.block_size)}"]
+
+    def to_gptq(self) -> QuantGPTQConfig:
+        """Convert to GPTQ configuration."""
+        return QuantGPTQConfig(
+            damp_percentage=self.damp_percentage,
+            block_size=self.block_size,
+            num_inv_tries=self.num_inv_tries,
+            hessian_block_size=self.hessian_block_size,
+            includes=self.includes,
+        )
