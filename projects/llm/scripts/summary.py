@@ -5,6 +5,8 @@ import csv
 
 # 최상위 폴더 경로 설정
 top_folder = "/scale/cal/home/jychoi/model/qserve_checkpoints/llm/llama2/llama2-7b/w.3-x.16-y.16/w.zint3-x.fp16-y.fp16"
+#top_folder = "/scale/cal/home/jychoi/model/qserve_checkpoints/llm/llama2/llama2-7b/w.2-x.16-y.16/w.zint2-x.fp16-y.fp16"
+
 
 # 추출할 옵션 목록 및 경로
 options = {
@@ -14,6 +16,7 @@ options = {
     "quant.smooth.enable_xw": ["quant", "smooth", "enable_xw"],
     "quant.smooth.enable_yx": ["quant", "smooth", "enable_yx"],
     "quant.wgts.enable_calib_range": ["quant", "wgts", "enable_calib_range"],
+    "quant.wgts.enable_calib_kernel": ["quant", "wgts", "enable_calib_kernel"]
 }
 
 # 결과를 저장할 리스트
@@ -43,13 +46,13 @@ for root, dirs, files in os.walk(top_folder):
                     break
             config_values[opt] = value
 
-    
+        config_values.update({})    
         # 조건에 따라 smooth 관련 값 처리
         if config_values.get("quant.enable_smooth", False) is False:
             # quant.enable_smooth이 False라면 둘 다 False
             config_values["quant.smooth.enable_xw"] = False
             config_values["quant.smooth.enable_yx"] = False
-        
+ 
         # 결과 데이터 추출 (예: word_perplexity)
         word_perplexity = result_data.get("2048", {}).get("results", {}).get("wikitext", {}).get("word_perplexity", None)
 
@@ -58,6 +61,9 @@ for root, dirs, files in os.walk(top_folder):
 
 # CSV 파일로 저장
 output_file = "results_summary.csv"
+#options.update({    
+#    "quant.wgts.calib_kernel.enable_gptq": ["quant", "wgts", "calib_kernel", "enable_gptq"]
+#})
 with open(output_file, "w", newline="") as csvfile:
     fieldnames = list(options.keys()) + ["word_perplexity", "folder"]
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)

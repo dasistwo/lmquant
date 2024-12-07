@@ -1,7 +1,7 @@
 seed: 12345
 save_model: false
 model:
-  name: llama2-7b
+  name: llama2-13b
   root: /home/jychoi/model/hf
   local_root: /home/jychoi/model/hf
 eval:

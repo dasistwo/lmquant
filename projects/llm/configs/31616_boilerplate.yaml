@@ -76,16 +76,17 @@ quant:
       skip_proj_qkv: true
     enable_calib_kernel: true
     calib_kernel:
-      enable_gptq: true
-      gptq:
-        damp_percentage: 0.01
-        block_size: 128
-        num_inv_tries: 250
-        hessian_block_size: 512
-        include_proj_qkv: true
-        include_proj_out: true
-        include_proj_1st: true
-        include_proj_2nd: true
+      enable_gptq: false
+      #enable_gptq: true
+      #gptq:
+      #  damp_percentage: 0.01
+      #  block_size: 128
+      #  num_inv_tries: 250
+      #  hessian_block_size: 512
+      #  include_proj_qkv: true
+      #  include_proj_out: true
+      #  include_proj_1st: true
+      #  include_proj_2nd: true
   ipts:
     static: false
     dtype: null

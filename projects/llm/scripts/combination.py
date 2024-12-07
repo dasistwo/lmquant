@@ -8,6 +8,7 @@ from pathlib import Path
 
 # 경로 설정
 boilerplate_yaml_path = Path("/scale/cal/home/jychoi/lmquant/projects/llm/configs/21616_boilerplate.yaml")
+#boilerplate_yaml_path = Path("/scale/cal/home/jychoi/lmquant/projects/llm/configs/31616_boilerplate.yaml")
 output_dir = Path("configs/generated_configs")
 output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -17,7 +18,8 @@ options = [
     "quant.enable_reorder",
     "quant.smooth.enable_xw",
     "quant.smooth.enable_yx",
-    "quant.wgts.enable_calib_range"
+    "quant.wgts.enable_calib_range",
+    "quant.wgts.calib_kernel.enable_gptq"
 ]
 
 # 경로별 하위 옵션 매핑
@@ -25,7 +27,8 @@ sub_options = {
     "quant.enable_reorder": ["quant.reorder"],
     "quant.smooth.enable_xw": ["quant.smooth.xw"],
     "quant.smooth.enable_yx": ["quant.smooth.yx"],
-    "quant.wgts.enable_calib_range": ["quant.wgts.calib_range"]
+    "quant.wgts.enable_calib_range": ["quant.wgts.calib_range"],
+    "quant.wgts.calib_kernel.enable_gptq": ["quant.wgts.calib_kernel.gptq"]
 }
 
 # YAML 파일 읽기

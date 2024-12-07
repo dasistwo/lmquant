@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 # Load the CSV file
-file_path = "./results_summary.csv"
+file_path = "./results_summary_31616_7b.csv"
 data = pd.read_csv(file_path)
 
 # Fill NaN values in the relevant feature columns with False
@@ -20,6 +20,7 @@ features = [
     "quant.smooth.enable_xw",
     "quant.smooth.enable_yx",
     "quant.wgts.enable_calib_range",
+    "quant.wgts.enable_calib_kernel"
 ]
 X = data_filled[features]
 y = data_filled["word_perplexity"]
@@ -46,7 +47,8 @@ feature_names = {
     'quant.enable_reorder': 'reorder',
     'quant.smooth.enable_xw': 'awq_smooth',
     'quant.smooth.enable_yx': 'smooth attention',
-    'quant.wgts.enable_calib_range': 'awq_calib'
+    'quant.wgts.enable_calib_range': 'awq_calib',
+    'quant.wgts.enable_calib_kernel': 'gptq'
 }
 
 # Update coefficients and errors for plotting
